@@ -45,7 +45,7 @@ def get_videos(url):
 
   
 @app.route('/')
-def searcher():
+def searcher_API_v2():
 	"""Return a friendly HTTP greeting."""
 	return """
 <html>
@@ -54,6 +54,8 @@ def searcher():
 	   <script type="text/javascript">
 var keywordSearch = "tcd1304ap";
 var gresults = {};
+var startIndex = 1;
+var numResults = 10;
 
 
 function sendUrlToServer(url){
@@ -76,16 +78,31 @@ function sendUrlToServer(url){
 	$("#form_jsSubmit").submit();	
 }
 
+function nextResults(){
+	startIndex+=numResults;
+	searchYoutube();
+}
+
+function prevResults(){
+	if (startIndex>1) {
+		startIndex-=numResults;
+		searchYoutube();
+	}
+}
+
 function searchYoutube() {
 	keywordSearch = $("#searchText").val();
+	console.log(keywordSearch);
+    var f= encodeURIComponent(keywordSearch);
+    console.log(f);
 	$.get(
 		"https://gdata.youtube.com/feeds/api/videos",
 		{
 			"q":keywordSearch,
 			"fields":"entry,entry(media:group(media:thumbnail(@url)))",
 			"orderby":"published",
-			"start-index":1,
-			"max-results":10,
+			"start-index":startIndex,
+			"max-results":numResults,
 			"v":2,
 			"alt":"json"
 		},
@@ -93,6 +110,8 @@ function searchYoutube() {
 		{
 			console.log(results);
 			var newHtml="";
+			//clear existing results, if there are any
+			$("#searchResults").html(newHtml);
 			$.each(results["feed"]["entry"], function(i, searchResult)
 			{
 				newHtml+="<div><img src='" + searchResult["media$group"]["media$thumbnail"][0]["url"] + "' ";
@@ -102,13 +121,22 @@ function searchYoutube() {
 				newHtml+=searchResult["title"]["$t"] + "</br>";
 				newHtml+="</div>";
 			});
+			newHtml+= "</br></br><span><a href='javascript:prevResults()'>Prev Results</a>    "
+			newHtml+= "<a href='javascript:nextResults()'>Next Results</a></span>"
 			$("#searchResults").html(newHtml);
 		}
 	);
 }
-//$(document).ready(searchYoutube());
+$(document).ready(function(){
+	//bind the search function to enter keypress in the textbox
+	$('#searchText').keypress(function (event) {
+	    if (event.which == 13) {
+	        searchYoutube()
+	    }
+	});
+});
 		</script>
-		<input type="text" id="searchText" name="searchBox">
+		<input type="text" id="searchText" style="width: 100%; height:5em;" >
 		<a href="javascript:searchYoutube()">Search</a>
 		<div id="searchResults"></div>
 		
@@ -135,6 +163,8 @@ def hello():
 				 as_attachment=True,
 				 attachment_filename=filename)
 	return "BAD"
+
+
 
 @app.errorhandler(404)
 def page_not_found(e):

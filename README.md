@@ -3,6 +3,7 @@ A small Flask app allows users to search youtube and download an audio file of t
 
 #Requirements:
 
+youtube-dl
 flask
 werkzeug
 jinja2
