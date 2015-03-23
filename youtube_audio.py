@@ -1,12 +1,20 @@
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__),"lib"))
 import json
 from flask import Flask, request, make_response, jsonify, send_file
+
+import youtube_dl
+
 app = Flask(__name__)
 app.config['DEBUG'] = True
 
-import youtube_dl
+# load the Flask server settings from a JSON file
+with open('preferences.settings', 'r') as f:
+	settings = json.loads(f.read())
+	root_url = settings['root_url']
+	root_port = settings['port']
+	root_ip = settings['ip']
+	download_dir = settings['download_dir']
 
 
 class SimpleYDL(youtube_dl.YoutubeDL):
@@ -26,25 +34,31 @@ def get_videos(url):
 	}
 	ydl = SimpleYDL(ydl_params)
 	res = ydl.extract_info(url, download=False)
-	try:
-		os.chdir('youtubemp3')
-	except Exception as e:
-		print "error: %s" % e
-		print sys.exc_info()[0]
-		
-	fileExists = [file for file in os.listdir('.') if res['id'] in file]
+	if not os.path.isdir(download_dir):
+		os.makedirs(download_dir)
+	# change the working-directory to the download_dir
+	os.chdir(download_dir)
 
-	if not len(fileExists)>0:
+	def id_exists_in_files(file_name):
+		return [file for file in os.listdir('.') if unicode(file_name) in unicode(file, errors='ignore')]
+
+	files_present = id_exists_in_files(res['id'])
+
+	if not files_present:
+		# download
+		print 'downloading'
 		res = ydl.extract_info(url, download=True)
-		fileExists = [file for file in os.listdir('.') if res['id'] in file]
-	
-	fileExists = os.path.abspath(fileExists[0])
+		# scan files for id
+		files_present = id_exists_in_files(res['id'])
+	else:
+		print 'already exists'
+	# get the first (assuming only) file in the list
+	file_name = os.path.abspath(files_present[0])
 
-	return fileExists
+	return file_name
 
 
-  
-@app.route('/')
+@app.route(root_url)
 def searcher_API_v2():
 	"""Return a friendly HTTP greeting."""
 	return """
@@ -145,7 +159,8 @@ $(document).ready(function(){
 		</form>
 	</body>
 </html>"""
-  
+
+
 @app.route('/ytUrl', methods=['GET','POST', 'PUT', 'OPTIONS'])
 def hello():
 	if request.method == 'POST':
@@ -165,11 +180,11 @@ def hello():
 	return "BAD"
 
 
-
 @app.errorhandler(404)
 def page_not_found(e):
 	"""Return a custom 404 error."""
 	return 'Sorry, nothing at this URL.', 404
 
+
 if __name__ == "__main__":
-	app.run(host='0.0.0.0')
+	app.run(host=root_ip, port=root_port)

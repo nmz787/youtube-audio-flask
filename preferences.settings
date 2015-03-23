@@ -1,0 +1,7 @@
+{
+    "ip":"0.0.0.0",
+    "port":5555,
+    "root_url":"/",
+    "download_dir":"youtube_audio_downloads"
+}
+
